@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Japanese Flashcards & Kana Trainer</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#121a33; --muted:#9fb0d3; --text:#e8efff; --accent:#6ea8fe; --accent2:#7ee7a6; --danger:#ff6b6b; --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background:linear-gradient(180deg,#0b1020 0%, #0d1630 100%); color:var(--text);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+    }
+    .app{width:100%; max-width:1100px}
+    header{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+    .title{font-size:clamp(22px,3.5vw,32px); font-weight:800; letter-spacing:.3px}
+    .subtitle{opacity:.8; font-size:clamp(12px,2vw,14px)}
+
+    .tabs{display:flex; gap:8px; flex-wrap:wrap}
+    .tab{
+      background:#0f1731; border:1px solid #223264; color:var(--text);
+      padding:10px 14px; border-radius:999px; cursor:pointer; user-select:none;
+    }
+    .tab.active{background:var(--accent); border-color:transparent; color:#06132b; font-weight:700}
+
+    .toolbar{display:flex; gap:10px; flex-wrap:wrap}
+    .link-btn{background:transparent; border:none; color:var(--accent); text-decoration:underline; cursor:pointer; padding:8px 6px; border-radius:8px}
+    .link-btn:hover{filter:brightness(1.1)}
+
+    .card{background:var(--card); border:1px solid #1c294f; border-radius:20px; box-shadow:var(--shadow); padding:22px}
+    .grid{display:grid; gap:16px}
+    @media(min-width:900px){
+      .grid{grid-template-columns: 1.2fr .8fr}
+    }
+
+    /* Word Flashcards */
+    .flash-card{
+      display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
+      min-height:280px; border-radius:18px; background:#0e1733; border:1px solid #203468; box-shadow:var(--shadow);
+      padding:28px
+    }
+    .jp{font-size:clamp(40px,8vw,72px); line-height:1.1; font-weight:800; text-shadow:0 2px 0 rgba(0,0,0,.25)}
+    .en{font-size:clamp(16px,3.5vw,22px); margin-top:12px; color:var(--muted); display:none}
+    .ro{font-size:clamp(14px,3vw,20px); margin-top:8px; color:var(--muted); display:none}
+
+    .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .btn{
+      border:none; cursor:pointer; border-radius:12px; padding:12px 14px; font-weight:700;
+      background:#192852; color:var(--text); border:1px solid #294081; transition:transform .05s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn[disabled]{opacity:.5; cursor:not-allowed; transform:none}
+    .btn.primary{background:var(--accent); color:#072342; border-color:transparent}
+    .btn.success{background:var(--accent2); color:#033016; border-color:transparent}
+    .btn.danger{background:var(--danger); color:#2c0000; border-color:transparent}
+    .btn.ghost{background:transparent}
+    .chip{background:#0f1731; border:1px solid #223264; padding:8px 10px; border-radius:999px; font-size:13px; color:var(--muted)}
+    .chip.good{background:#0e2a1b; border-color:#1e6a46; color:#a8f2c8}
+    .chip.bad{background:#2a0e0e; border-color:#6a1e1e; color:#ffc4c4}
+
+    /* Kana Trainer */
+    .panel{display:flex; flex-direction:column; gap:12px}
+    .kana-card{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center;
+      min-height:260px; background:#0e1733; border:1px solid #203468; border-radius:18px; padding:26px; box-shadow:var(--shadow)}
+    .kana-char{font-size:clamp(64px,11vw,120px); font-weight:900}
+    .romaji{font-size:clamp(16px,4vw,28px); color:var(--muted); display:none}
+
+    .controls{display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:10px}
+    .group{background:#0f1731; border:1px solid #223264; border-radius:14px; padding:10px 12px}
+    .group h4{margin:0 0 8px 0; font-size:13px; letter-spacing:.8px; text-transform:uppercase; color:var(--muted)}
+    .group .row{justify-content:space-between}
+    label{display:flex; gap:8px; align-items:center; font-size:14px; color:var(--text)}
+    input[type="checkbox"]{transform:scale(1.1)}
+    select{width:100%; padding:10px 12px; border-radius:10px; background:#0b142d; color:var(--text); border:1px solid #223264}
+
+    .stats{display:flex; flex-wrap:wrap; gap:10px}
+    .stat{background:#0f1731; border:1px solid #223264; border-radius:12px; padding:8px 10px; font-size:13px; color:var(--muted)}
+    .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; background:#0a1230; border:1px solid #223264; border-radius:8px; padding:2px 6px; font-size:12px; color:#9ec0ff}
+    #self-tests{display:none}
+
+    /* Modal for Kana Charts */
+    #chart-modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(6,10,24,.7); padding:24px; z-index:100}
+    #chart-modal.open{display:flex}
+    .modal{background:var(--card); border:1px solid #1c294f; border-radius:18px; box-shadow:var(--shadow); width:100%; max-width:980px; max-height:90vh; overflow:auto}
+    .modal header{display:flex; justify-content:space-between; align-items:center; padding:16px 18px; position:sticky; top:0; background:linear-gradient(180deg,#121a33 0%, #0e1733 100%); border-bottom:1px solid #1c294f}
+    .modal h3{margin:0; font-size:18px}
+    .modal .close{background:transparent; border:none; color:var(--muted); font-size:22px; cursor:pointer}
+    .modal .content{padding:16px 18px}
+    .chart-section{margin-bottom:18px}
+    .chart-section h5{margin:0 0 10px 0; font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px}
+    .chart-grid{display:grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap:8px}
+    .chart-cell{background:#0f1731; border:1px solid #223264; border-radius:12px; padding:10px; text-align:center}
+    .chart-cell .kana{display:block; font-size:28px; font-weight:800}
+    .chart-cell .ro{display:block; font-size:12px; color:var(--muted)}
+
+    /* Pair chart */
+    .pair-section{margin-bottom:18px}
+    .pair-grid{display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; align-items:center}
+    .pair-head{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.8px}
+    .pair-cell{background:#0f1731; border:1px solid #223264; border-radius:12px; padding:10px; text-align:center}
+    .pair-cell .kana{display:block; font-size:26px; font-weight:800}
+    .pair-cell .ro{display:block; font-size:12px; color:var(--muted)}
+
+    /* Robust hide helper */
+    .is-hidden{display:none !important}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <div class="title">Japanese Flashcards & Kana Trainer</div>
+        <div class="subtitle">Offline single‑file app to learn travel vocabulary + every hiragana/katakana character.</div>
+      </div>
+      <div class="toolbar">
+        <button class="link-btn" id="link-hira">Hiragana Chart</button>
+        <button class="link-btn" id="link-kata">Katakana Chart</button>
+        <button class="link-btn" id="link-pairs">Kana Pair Chart</button>
+        <nav class="tabs" role="tablist" aria-label="Modes">
+          <button class="tab active" data-tab="words" role="tab" aria-selected="true">Word Flashcards</button>
+          <button class="tab" data-tab="kana" role="tab" aria-selected="false">Kana Trainer</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- WORD FLASHCARDS -->
+    <section id="tab-words" class="card grid" role="tabpanel" aria-labelledby="words">
+      <div>
+        <div class="flash-card" aria-live="polite">
+          <div id="wc-jp" class="jp">…</div>
+          <div id="wc-ro" class="ro">…</div>
+          <div id="wc-en" class="en">…</div>
+        </div>
+        <div class="row" id="wc-row" style="margin-top:10px; justify-content:center">
+          <button class="btn primary" id="wc-show">Show Meaning <span class="kbd">Space</span></button>
+          <button class="btn" id="wc-speak">🔊 Speak</button>
+          <button class="btn" id="wc-readtest">Reading Test 🎤 <span class="kbd">R</span></button>
+          <button class="btn" id="wc-next">Next <span class="kbd">→</span></button>
+          <button class="btn" id="wc-toggle">Switch to Katakana</button>
+          <span class="chip" id="wc-test-status" aria-live="polite">Not tested</span>
+          <span class="chip bad" id="wc-perm-hint" style="display:none" aria-live="polite"></span>
+        </div>
+      </div>
+      <aside>
+        <div class="group">
+          <h4>Tips</h4>
+          <div class="row" style="justify-content:flex-start; gap:8px; color:var(--muted); font-size:14px">
+            <div>• Focus on script recognition first; sound comes after.</div>
+            <div>• Katakana is common on menus for loanwords (コーヒー, ビール).</div>
+            <div>• Use <span class="kbd">Space</span> to reveal, <span class="kbd">→</span> next, <span class="kbd">R</span> reading test.</div>
+          </div>
+        </div>
+        <div class="group">
+          <h4>Set Size</h4>
+          <label><input type="checkbox" id="wc-shuffle" checked /> Shuffle automatically</label>
+          <div class="chip" id="wc-count">0 cards</div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- KANA TRAINER -->
+    <section id="tab-kana" class="card grid is-hidden" role="tabpanel" aria-labelledby="kana" hidden>
+      <div class="panel">
+        <div class="kana-card" aria-live="polite">
+          <div id="kc-char" class="kana-char">あ</div>
+          <div id="kc-romaji" class="romaji">a</div>
+        </div>
+        <div class="row" style="justify-content:center">
+          <button class="btn primary" id="kc-show">Show Romaji <span class="kbd">Space</span></button>
+          <button class="btn" id="kc-speak">🔊 Speak</button>
+          <button class="btn success" id="kc-correct">I was right <span class="kbd">K</span></button>
+          <button class="btn danger" id="kc-wrong">I was wrong <span class="kbd">J</span></button>
+          <button class="btn" id="kc-next">Next <span class="kbd">→</span></button>
+        </div>
+        <div class="stats" id="kc-stats"></div>
+      </div>
+      <aside class="panel">
+        <div class="group">
+          <h4>Script</h4>
+          <select id="kc-script">
+            <option value="hiragana">Hiragana</option>
+            <option value="katakana">Katakana</option>
+          </select>
+        </div>
+        <div class="group">
+          <h4>Include Sets</h4>
+          <label><input type="checkbox" id="kc-basic" checked /> Basic 46 (gojūon + ん)</label>
+          <label><input type="checkbox" id="kc-dakuten" /> Dakuten (が/ざ/だ/ば)</label>
+          <label><input type="checkbox" id="kc-handakuten" /> Handakuten (ぱ)</label>
+          <label><input type="checkbox" id="kc-yoon" /> Digraphs (きゃ/キャ etc.)</label>
+          <label><input type="checkbox" id="kc-exclude-mastered" /> Exclude mastered</label>
+        </div>
+        <div class="group">
+          <h4>Options</h4>
+          <label><input type="checkbox" id="kc-auto-shuffle" checked /> Auto-shuffle</label>
+          <label><input type="checkbox" id="kc-auto-advance" /> Auto-advance on Right</label>
+          <div class="row"><button class="btn ghost" id="kc-reset">Reset Progress</button><span class="chip" id="kc-count">0 cards</span></div>
+        </div>
+        <div class="group">
+          <h4>Shortcuts</h4>
+          <div style="color:var(--muted); font-size:14px; display:flex; gap:12px; flex-wrap:wrap">
+            <div><span class="kbd">Space</span> show</div>
+            <div><span class="kbd">→</span> next</div>
+            <div><span class="kbd">K</span> right</div>
+            <div><span class="kbd">J</span> wrong</div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Modal -->
+    <div id="chart-modal" aria-hidden="true">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="chart-title">
+        <header>
+          <h3 id="chart-title">Kana Chart</h3>
+          <button class="close" id="chart-close" aria-label="Close">✕</button>
+        </header>
+        <div class="content" id="chart-body"></div>
+      </div>
+    </div>
+
+    <div id="self-tests"></div>
+  </div>
+
+  <script>
+    // ===========================
+    // Data — Travel Words
+    // ===========================
+    const HIRAGANA_WORDS = [
+      { jp: "こんにちは", ro: "konnichiwa", en: "Hello" },
+      { jp: "ありがとう", ro: "arigatou", en: "Thank you" },
+      { jp: "すみません", ro: "sumimasen", en: "Excuse me / Sorry" },
+      { jp: "みず", ro: "mizu", en: "Water" },
+      { jp: "ごはん", ro: "gohan", en: "Cooked rice / Meal" },
+      { jp: "といれ", ro: "toire", en: "Toilet" },
+      { jp: "えき", ro: "eki", en: "Train station" },
+      { jp: "でんしゃ", ro: "densha", en: "Train" },
+      { jp: "やすい", ro: "yasui", en: "Cheap" },
+      { jp: "たかい", ro: "takai", en: "Expensive" },
+      { jp: "おいしい", ro: "oishii", en: "Delicious" },
+      { jp: "ちず", ro: "chizu", en: "Map" },
+      { jp: "いくら", ro: "ikura", en: "How much?" },
+      { jp: "にほんご", ro: "nihongo", en: "Japanese language" },
+      { jp: "ていしょく", ro: "teishoku", en: "Set meal" },
+      { jp: "ぎゅうにく", ro: "gyuuniku", en: "Beef" },
+      { jp: "ぶたにく", ro: "butaniku", en: "Pork" },
+      { jp: "とりにく", ro: "toriniku", en: "Chicken" },
+    ];
+
+    const KATAKANA_WORDS = [
+      { jp: "ホテル", ro: "hoteru", en: "Hotel" },
+      { jp: "レストラン", ro: "resutoran", en: "Restaurant" },
+      { jp: "コーヒー", ro: "koohii", en: "Coffee" },
+      { jp: "メニュー", ro: "menyuu", en: "Menu" },
+      { jp: "タクシー", ro: "takushii", en: "Taxi" },
+      { jp: "コンビニ", ro: "konbini", en: "Convenience store" },
+      { jp: "バス", ro: "basu", en: "Bus" },
+      { jp: "ビール", ro: "biiru", en: "Beer" },
+      { jp: "ワイン", ro: "wain", en: "Wine" },
+      { jp: "チケット", ro: "chiketto", en: "Ticket" },
+      { jp: "スーパー", ro: "suupaa", en: "Supermarket" },
+      { jp: "カメラ", ro: "kamera", en: "Camera" },
+      { jp: "サイズ", ro: "saizu", en: "Size" },
+      { jp: "トイレ", ro: "toire", en: "Toilet" },
+      { jp: "アレルギー", ro: "arerugii", en: "Allergy" },
+    ];
+
+    // ===========================
+    // Data — Kana Sets (Monographs + optional digraphs)
+    // ===========================
+    const Kana = {
+      hiragana: {
+        basic: [
+          ["あ","a"],["い","i"],["う","u"],["え","e"],["お","o"],
+          ["か","ka"],["き","ki"],["く","ku"],["け","ke"],["こ","ko"],
+          ["さ","sa"],["し","shi"],["す","su"],["せ","se"],["そ","so"],
+          ["た","ta"],["ち","chi"],["つ","tsu"],["て","te"],["と","to"],
+          ["な","na"],["に","ni"],["ぬ","nu"],["ね","ne"],["の","no"],
+          ["は","ha"],["ひ","hi"],["ふ","fu"],["へ","he"],["ほ","ho"],
+          ["ま","ma"],["み","mi"],["む","mu"],["め","me"],["も","mo"],
+          ["や","ya"],["ゆ","yu"],["よ","yo"],
+          ["ら","ra"],["り","ri"],["る","ru"],["れ","re"],["ろ","ro"],
+          ["わ","wa"],["を","wo"],["ん","n"],
+        ],
+        dakuten: [
+          ["が","ga"],["ぎ","gi"],["ぐ","gu"],["げ","ge"],["ご","go"],
+          ["ざ","za"],["じ","ji"],["ず","zu"],["ぜ","ze"],["ぞ","zo"],
+          ["だ","da"],["ぢ","ji"],["づ","zu"],["で","de"],["ど","do"],
+          ["ば","ba"],["び","bi"],["ぶ","bu"],["べ","be"],["ぼ","bo"],
+        ],
+        handakuten: [
+          ["ぱ","pa"],["ぴ","pi"],["ぷ","pu"],["ぺ","pe"],["ぽ","po"],
+        ],
+        yoon: [
+          ["きゃ","kya"],["きゅ","kyu"],["きょ","kyo"],
+          ["しゃ","sha"],["しゅ","shu"],["しょ","sho"],
+          ["ちゃ","cha"],["ちゅ","chu"],["ちょ","cho"],
+          ["にゃ","nya"],["にゅ","nyu"],["にょ","nyo"],
+          ["ひゃ","hya"],["ひゅ","hyu"],["ひょ","hyo"],
+          ["みゃ","mya"],["みゅ","myu"],["みょ","myo"],
+          ["りゃ","rya"],["りゅ","ryu"],["りょ","ryo"],
+          ["ぎゃ","gya"],["ぎゅ","gyu"],["ぎょ","gyo"],
+          ["じゃ","ja"],["じゅ","ju"],["じょ","jo"],
+          ["びゃ","bya"],["びゅ","byu"],["びょ","byo"],
+          ["ぴゃ","pya"],["ぴゅ","pyu"],["ぴょ","pyo"],
+        ],
+      },
+      katakana: {
+        basic: [
+          ["ア","a"],["イ","i"],["ウ","u"],["エ","e"],["オ","o"],
+          ["カ","ka"],["キ","ki"],["ク","ku"],["ケ","ke"],["コ","ko"],
+          ["サ","sa"],["シ","shi"],["ス","su"],["セ","se"],["ソ","so"],
+          ["タ","ta"],["チ","chi"],["ツ","tsu"],["テ","te"],["ト","to"],
+          ["ナ","na"],["ニ","ni"],["ヌ","nu"],["ネ","ne"],["ノ","no"],
+          ["ハ","ha"],["ヒ","hi"],["フ","fu"],["ヘ","he"],["ホ","ho"],
+          ["マ","ma"],["ミ","mi"],["ム","mu"],["メ","me"],["モ","mo"],
+          ["ヤ","ya"],["ユ","yu"],["ヨ","yo"],
+          ["ラ","ra"],["リ","ri"],["ル","ru"],["レ","re"],["ロ","ro"],
+          ["ワ","wa"],["ヲ","wo"],["ン","n"],
+        ],
+        dakuten: [
+          ["ガ","ga"],["ギ","gi"],["グ","gu"],["ゲ","ge"],["ゴ","go"],
+          ["ザ","za"],["ジ","ji"],["ズ","zu"],["ゼ","ze"],["ゾ","zo"],
+          ["ダ","da"],["ヂ","ji"],["ヅ","zu"],["デ","de"],["ド","do"],
+          ["バ","ba"],["ビ","bi"],["ブ","bu"],["ベ","be"],["ボ","bo"],
+        ],
+        handakuten: [
+          ["パ","pa"],["ピ","pi"],["プ","pu"],["ペ","pe"],["ポ","po"],
+        ],
+        yoon: [
+          ["キャ","kya"],["キュ","kyu"],["キョ","kyo"],
+          ["シャ","sha"],["シュ","shu"],["ショ","sho"],
+          ["チャ","cha"],["チュ","chu"],["チョ","cho"],
+          ["ニャ","nya"],["ニュ","nyu"],["ニョ","nyo"],
+          ["ヒャ","hya"],["ヒュ","hyu"],["ヒョ","hyo"],
+          ["ミャ","mya"],["ミュ","myu"],["ミョ","myo"],
+          ["リャ","rya"],["リュ","ryu"],["リョ","ryo"],
+          ["ギャ","gya"],["ギュ","gyu"],["ギョ","gyo"],
+          ["ジャ","ja"],["ジュ","ju"],["ジョ","jo"],
+          ["ビャ","bya"],["ビュ","byu"],["ビョ","byo"],
+          ["ピャ","pya"],["ピュ","pyu"],["ピョ","pyo"],
+        ],
+      }
+    };
+
+    // ===========================
+    // Utilities
+    // ===========================
+    const $ = sel => document.querySelector(sel);
+    function shuffleInPlace(arr){
+      for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]]}
+      return arr;
+    }
+
+    // ===========================
+    // Speech (TTS)
+    // ===========================
+    const TTS = (()=>{
+      const api = { ready: false, voice: null, rate: 1,
+        speak(text){ if(!this.ready) return; window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); if(this.voice) u.voice = this.voice; u.lang = 'ja-JP'; u.rate = this.rate; window.speechSynthesis.speak(u); }
+      };
+      api.ready = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
+      function pickVoice(){ if(!api.ready) return; const voices = speechSynthesis.getVoices(); api.voice = voices.find(v=>v.lang && v.lang.toLowerCase().startsWith('ja')) || null; }
+      if(api.ready){ pickVoice(); window.speechSynthesis.onvoiceschanged = pickVoice; }
+      return api;
+    })();
+    function updateTTSButtons(){ const supported = TTS.ready; ['wc-speak','kc-speak'].forEach(id=>{ const b=document.getElementById(id); if(!b) return; b.disabled = !supported; b.title = supported? 'Speak (Japanese)' : 'Speech not supported in this browser'; }); }
+
+    // ===========================
+    // Speech Recognition (ASR) for Reading Test (Word Flashcards)
+    // ===========================
+    const ASR = (()=>{
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!SR) return { ready:false };
+      const rec = new SR();
+      rec.lang = 'ja-JP';
+      rec.interimResults = false;
+      rec.maxAlternatives = 5;
+      return { ready:true, rec, active:false };
+    })();
+
+    // Secure-context check and permission helpers
+    const SECURE_OK = (window.isSecureContext || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+    function showPermHint(msg){ const el = document.getElementById('wc-perm-hint'); if(el){ el.style.display='inline-block'; el.textContent = msg; } }
+    function hidePermHint(){ const el = document.getElementById('wc-perm-hint'); if(el){ el.style.display='none'; el.textContent=''; } }
+    async function ensureMicPermission(){
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+      try{
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Immediately stop tracks; we only needed the permission prompt
+        stream.getTracks().forEach(t=>t.stop());
+        return true;
+      }catch(err){
+        return false;
+      }
+    }
+
+    function containsKana(str){ return /[\u3041-\u30FF]/.test(str); }
+    function kataToHira(str){
+      return str.replace(/[\u30A1-\u30F6]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+    }
+    function normalizeKana(str){
+      if(!str) return '';
+      return kataToHira(str)
+        .normalize('NFKC')
+        .replace(/[\s\u3000]/g,'') // spaces
+        .replace(/[・、。,.!?！？，]/g,'') // punctuation & middledot
+        .toLowerCase();
+    }
+    function editDistance(a,b){
+      const m=a.length,n=b.length; const dp=new Array(n+1);
+      for(let j=0;j<=n;j++) dp[j]=j;
+      for(let i=1;i<=m;i++){
+        let prev=dp[0], tmp; dp[0]=i;
+        for(let j=1;j<=n;j++){
+          tmp=dp[j];
+          if(a[i-1]===b[j-1]) dp[j]=prev; else dp[j]=1+Math.min(prev, dp[j-1], dp[j]);
+          prev=tmp;
+        }
+      }
+      return dp[n];
+    }
+    function similarity(a,b){
+      if(!a && !b) return 1; if(!a||!b) return 0;
+      const d=editDistance(a,b); return 1 - d/Math.max(a.length,b.length);
+    }
+    function scoreReading(recognized, target){
+      const r1 = normalizeKana(recognized); const t1 = normalizeKana(target);
+      const s1 = similarity(r1,t1);
+      // treat long vowel mark as optional
+      const s2 = similarity(r1.replace(/ー/g,''), t1.replace(/ー/g,''));
+      return Math.max(s1,s2);
+    }
+    function resetTestStatus(){ const el=$('#wc-test-status'); if(el){ el.textContent='Not tested'; el.classList.remove('good','bad'); el.removeAttribute('title'); } hidePermHint(); }
+    function updateTestStatus(text, mood, title){ const el=$('#wc-test-status'); if(!el) return; el.textContent=text; el.classList.remove('good','bad'); if(mood==='good') el.classList.add('good'); if(mood==='bad') el.classList.add('bad'); if(title) el.title=title; }
+
+    function bindWordReadingTest(){
+      const btn = document.getElementById('wc-readtest');
+      if(!btn) return;
+      if(!ASR.ready){ btn.disabled=true; btn.title='Speech recognition not supported in this browser'; updateTestStatus('Not supported'); return; }
+      const rec = ASR.rec;
+      rec.onstart = ()=>{ ASR.active=true; btn.textContent='Stop Test ⏹'; updateTestStatus('Listening…'); };
+      rec.onresult = (e)=>{
+        ASR.active=false; btn.textContent='Reading Test 🎤';
+        const alts = e.results && e.results[0] ? e.results[0] : null;
+        let transcript = '';
+        if(alts){
+          for(let i=0;i<alts.length;i++){
+            const t = (alts[i].transcript||'').trim();
+            if(containsKana(t)){ transcript=t; break; }
+            if(!transcript) transcript=t; // fallback first
+          }
+        }
+        const target = (wordSet[wIndex]||{}).jp || '';
+        const score = scoreReading(transcript, target);
+        const pct = Math.round(score*100);
+        const title = transcript ? `Heard: ${transcript}` : 'No transcript';
+        if(pct>=85) updateTestStatus(`Great: ${pct}%`, 'good', title);
+        else updateTestStatus(`Try again: ${pct}%`, 'bad', title);
+      };
+      rec.onerror = (e)=>{
+        ASR.active=false; btn.textContent='Reading Test 🎤';
+        const code = e.error || 'unknown';
+        if(code==='not-allowed' || code==='service-not-allowed'){
+          updateTestStatus('Mic blocked', 'bad');
+          if(!SECURE_OK){
+            showPermHint('Run over HTTPS or localhost. Example: python3 -m http.server');
+          }else{
+            showPermHint('Allow microphone in browser Site settings, then retry.');
+          }
+        }else{
+          updateTestStatus(`Error: ${code}`,'bad');
+        }
+      };
+      rec.onend = ()=>{ ASR.active=false; btn.textContent='Reading Test 🎤'; };
+
+      btn.addEventListener('click', async ()=>{
+        if(ASR.active){ try{ rec.stop(); }catch(_){} return; }
+        resetTestStatus();
+        if(!SECURE_OK){
+          updateTestStatus('Needs HTTPS/localhost','bad');
+          showPermHint('Open via https:// or http://localhost (file:// is blocked).');
+          return;
+        }
+        const ok = await ensureMicPermission();
+        if(!ok){
+          updateTestStatus('Mic permission denied','bad');
+          showPermHint('Allow microphone for this site and try again.');
+          return;
+        }
+        try{ rec.start(); }catch(err){ updateTestStatus('Could not start mic','bad'); showPermHint('Check mic permission & close other apps using the mic.'); }
+      });
+    }
+
+    // ===========================
+    // Word Flashcards Logic
+    // ===========================
+    let wordMode = 'hiragana'; // 'hiragana' | 'katakana'
+    const wordDecks = {
+      hiragana: [...HIRAGANA_WORDS],
+      katakana: [...KATAKANA_WORDS]
+    };
+    let lastIndex = { hiragana: 0, katakana: 0 };
+    let wordSet = wordDecks[wordMode];
+    let wIndex = 0;
+
+    function wcUpdateCount(){ $('#wc-count').textContent = `${wordSet.length} cards`; }
+
+    function wcRender(){
+      const item = wordSet[wIndex];
+      if(!item) return;
+      const en = $('#wc-en'); en.style.display='none';
+      const ro = $('#wc-ro'); ro.style.display='none';
+      $('#wc-jp').textContent = item.jp;
+      ro.textContent = item.ro;
+      en.textContent = item.en;
+      resetTestStatus();
+    }
+    function wcNext(){
+      const en = $('#wc-en'); en.style.display='none';
+      const ro = $('#wc-ro'); ro.style.display='none';
+      wIndex = (wIndex + 1) % wordSet.length;
+      if(wIndex===0 && $('#wc-shuffle').checked) shuffleInPlace(wordSet);
+      lastIndex[wordMode] = wIndex;
+      const item = wordSet[wIndex];
+      $('#wc-jp').textContent = item.jp;
+      ro.textContent = item.ro;
+      en.textContent = item.en;
+      resetTestStatus();
+    }
+
+    function bindWordButtons(){
+      const next = $('#wc-next'); if(next) next.addEventListener('click', wcNext);
+      const show = $('#wc-show'); if(show) show.addEventListener('click', ()=> { $('#wc-ro').style.display='block'; $('#wc-en').style.display='block'; });
+      const speak = $('#wc-speak'); if(speak) speak.addEventListener('click', ()=> TTS.speak($('#wc-jp').textContent));
+      const toggle = $('#wc-toggle'); if(toggle) toggle.addEventListener('click', () => {
+        lastIndex[wordMode] = wIndex; // remember
+        wordMode = (wordMode === 'hiragana') ? 'katakana' : 'hiragana';
+        wordSet = wordDecks[wordMode];
+        $('#wc-toggle').textContent = (wordMode === 'hiragana') ? 'Switch to Katakana' : 'Switch to Hiragana';
+        wIndex = lastIndex[wordMode] || 0; // restore w/o advancing
+        wcUpdateCount();
+        wcRender();
+      });
+      bindWordReadingTest();
+    }
+
+    // If the Word buttons row is missing for any reason, recreate it safely.
+    function ensureWordButtons(){
+      if(document.getElementById('wc-show')) return; // already present
+      const col = document.querySelector('#tab-words > div');
+      if(!col) return;
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = '10px';
+      row.style.justifyContent = 'center';
+      row.innerHTML = `
+          <button class=\"btn primary\" id=\"wc-show\">Show Meaning <span class=\"kbd\">Space</span></button>
+          <button class=\"btn\" id=\"wc-speak\">🔊 Speak</button>
+          <button class=\"btn\" id=\"wc-readtest\">Reading Test 🎤 <span class=\"kbd\">R</span></button>
+          <button class=\"btn\" id=\"wc-next\">Next <span class=\"kbd\">→</span></button>
+          <button class=\"btn\" id=\"wc-toggle\">Switch to Katakana</button>
+          <span class=\"chip\" id=\"wc-test-status\" aria-live=\"polite\">Not tested</span>
+          <span class=\"chip bad\" id=\"wc-perm-hint\" style=\"display:none\" aria-live=\"polite\"></span>
+      `;
+      col.appendChild(row);
+    }
+
+    // ===========================
+    // Kana Trainer Logic
+    // ===========================
+    const PROGRESS_KEY = 'kana_progress_v1';
+    let progress = JSON.parse(localStorage.getItem(PROGRESS_KEY)||'{}'); // { char: {seen, correct} }
+    function saveProgress(){ localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); }
+    function resetProgress(){ progress = {}; saveProgress(); renderStats(); }
+    function isMastered(ch){
+      const p = progress[ch];
+      if(!p) return false;
+      const attempts = p.seen||0;
+      const acc = attempts ? (p.correct||0)/attempts : 0;
+      return attempts>=3 && acc>=0.8;
+    }
+
+    function buildPool(){
+      const scriptSel = document.getElementById('kc-script');
+      const script = scriptSel ? scriptSel.value : 'hiragana';
+      const include = [];
+      const src = Kana[script] || Kana.hiragana;
+      const chk = id => { const el = document.getElementById(id); return !!(el && el.checked); };
+      if(chk('kc-basic')) include.push(...(src.basic||[]));
+      if(chk('kc-dakuten')) include.push(...(src.dakuten||[]));
+      if(chk('kc-handakuten')) include.push(...(src.handakuten||[]));
+      if(chk('kc-yoon')) include.push(...(src.yoon||[]));
+      let pool = include.map(([ch, ro])=>({ch, ro}));
+      if(chk('kc-exclude-mastered')) pool = pool.filter(x=>!isMastered(x.ch));
+      if(chk('kc-auto-shuffle')) shuffleInPlace(pool);
+      return pool;
+    }
+
+    let kanaPool = [];
+    let kIndex = -1;
+
+    function kcRenderCard(){
+      const countEl = document.getElementById('kc-count');
+      if(!kanaPool.length){
+        document.getElementById('kc-char').textContent = '✓';
+        const ro = document.getElementById('kc-romaji');
+        ro.textContent = 'All selected items mastered or none selected.';
+        ro.style.display = 'block';
+        if(countEl) countEl.textContent = '0 cards';
+        return;
+      }
+      if(countEl) countEl.textContent = `${kanaPool.length} cards`;
+      const item = kanaPool[kIndex];
+      document.getElementById('kc-char').textContent = item.ch;
+      const ro = document.getElementById('kc-romaji');
+      ro.textContent = item.ro; ro.style.display = 'none';
+    }
+
+    function kcNext(){
+      if(!kanaPool.length){ kcRenderCard(); return; }
+      kIndex = (kIndex + 1) % kanaPool.length;
+      if(kIndex===0){ const auto = document.getElementById('kc-auto-shuffle'); if(auto && auto.checked) shuffleInPlace(kanaPool); }
+      kcRenderCard();
+    }
+
+    function mark(correct){
+      if(!kanaPool.length) return;
+      const ch = kanaPool[kIndex].ch;
+      progress[ch] = progress[ch] || {seen:0, correct:0};
+      progress[ch].seen++;
+      if(correct) progress[ch].correct++;
+      saveProgress();
+      renderStats();
+      const aa = document.getElementById('kc-auto-advance');
+      if(correct && aa && aa.checked){ kcNext(); }
+    }
+
+    function renderStats(){
+      const totalSeen = Object.values(progress).reduce((a,b)=>a+(b.seen||0),0);
+      const totalCorrect = Object.values(progress).reduce((a,b)=>a+(b.correct||0),0);
+      const acc = totalSeen? Math.round(100*totalCorrect/totalSeen):0;
+      const masteredCount = Object.keys(progress).filter(isMastered).length;
+      document.getElementById('kc-stats').innerHTML = `
+        <div class=\"stat\">Seen: <b>${totalSeen}</b></div>
+        <div class=\"stat\">Correct: <b>${totalCorrect}</b></div>
+        <div class=\"stat\">Accuracy: <b>${acc}%</b></div>
+        <div class=\"stat\">Mastered: <b>${masteredCount}</b></div>
+      `;
+    }
+
+    // ===========================
+    // Kana Charts (single-script) + Pair chart
+    // ===========================
+    function countKana(script){
+      const s = Kana[script];
+      return ['basic','dakuten','handakuten','yoon'].reduce((n,g)=> n + ((s[g]||[]).length), 0);
+    }
+
+    function buildChartHTML(script){
+      const s = Kana[script];
+      const sections = [
+        ['Basic 46', s.basic||[]],
+        ['Dakuten', s.dakuten||[]],
+        ['Handakuten', s.handakuten||[]],
+        ['Digraphs (yōon)', s.yoon||[]],
+      ];
+      let html = '';
+      for(const [title, arr] of sections){
+        if(!arr.length) continue;
+        html += `<div class=\"chart-section\"><h5>${title}</h5><div class=\"chart-grid\">`;
+        for(const [kana, ro] of arr){
+          html += `<div class=\"chart-cell\"><span class=\"kana\">${kana}</span><span class=\"ro\">${ro}</span></div>`;
+        }
+        html += `</div></div>`;
+      }
+      return html;
+    }
+
+    function buildPairChartHTML(){
+      const groups = [
+        ['Basic 46','basic'],
+        ['Dakuten','dakuten'],
+        ['Handakuten','handakuten'],
+        ['Digraphs (yōon)','yoon']
+      ];
+      let html = '';
+      for(const [label,key] of groups){
+        const hira = Kana.hiragana[key]||[];
+        const kata = Kana.katakana[key]||[];
+        const mapKata = new Map(kata.map(([k,r])=>[r,k]));
+        const rows = [];
+        for(const [h,r] of hira){
+          const k = mapKata.get(r);
+          if(k){ rows.push([h,k,r]); }
+        }
+        if(!rows.length) continue;
+        html += `<div class=\"pair-section\"><h5>${label}</h5>`;
+        html += `<div class=\"pair-grid\">`;
+        html += `<div class=\"pair-head\">Hiragana</div><div class=\"pair-head\">Katakana</div><div class=\"pair-head\">Romaji</div>`;
+        for(const [h,k,r] of rows){
+          html += `<div class=\"pair-cell\"><span class=\"kana\">${h}</span></div>`;
+          html += `<div class=\"pair-cell\"><span class=\"kana\">${k}</span></div>`;
+          html += `<div class=\"pair-cell\"><span class=\"ro\">${r}</span></div>`;
+        }
+        html += `</div></div>`;
+      }
+      return html;
+    }
+
+    function openChart(script){
+      const modal = document.getElementById('chart-modal');
+      document.getElementById('chart-title').textContent = script==='hiragana' ? 'Hiragana Chart' : 'Katakana Chart';
+      document.getElementById('chart-body').innerHTML = buildChartHTML(script);
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden','false');
+    }
+
+    function openPairChart(){
+      const modal = document.getElementById('chart-modal');
+      document.getElementById('chart-title').textContent = 'Hiragana ⇄ Katakana Pairs';
+      document.getElementById('chart-body').innerHTML = buildPairChartHTML();
+      modal.classList.add('open');
+      modal.setAttribute('aria-hidden','false');
+    }
+
+    function closeChart(){
+      const modal = document.getElementById('chart-modal');
+      modal.classList.remove('open');
+      modal.setAttribute('aria-hidden','true');
+    }
+
+    // ===========================
+    // Tabs — robust switching (uses attribute + CSS class)
+    // ===========================
+    function setActiveTab(mode){
+      const isKana = mode === 'kana';
+      const wordsSec = document.getElementById('tab-words');
+      const kanaSec = document.getElementById('tab-kana');
+      wordsSec.toggleAttribute('hidden', isKana);
+      kanaSec.toggleAttribute('hidden', !isKana);
+      wordsSec.classList.toggle('is-hidden', isKana);
+      kanaSec.classList.toggle('is-hidden', !isKana);
+      document.querySelectorAll('.tab').forEach(b=>{
+        const active = b.dataset.tab === (isKana ? 'kana' : 'words');
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', String(active));
+      });
+    }
+
+    function bindTabs(){
+      document.querySelectorAll('.tab').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const target = btn.dataset.tab === 'kana' ? 'kana' : 'words';
+          setActiveTab(target);
+        });
+      });
+    }
+
+    // ===========================
+    // Event wiring (after all functions exist)
+    // ===========================
+    function bindKanaButtons(){
+      const show = document.getElementById('kc-show'); if(show) show.addEventListener('click', ()=> document.getElementById('kc-romaji').style.display='block');
+      const next = document.getElementById('kc-next'); if(next) next.addEventListener('click', kcNext);
+      const speak = document.getElementById('kc-speak'); if(speak) speak.addEventListener('click', ()=> TTS.speak(document.getElementById('kc-char').textContent));
+      const corr = document.getElementById('kc-correct'); if(corr) corr.addEventListener('click', ()=> mark(true));
+      const wrong = document.getElementById('kc-wrong'); if(wrong) wrong.addEventListener('click', ()=>{
+        mark(false);
+        if(kanaPool.length>1){
+          const item = kanaPool.splice(kIndex,1)[0];
+          const insertAt = Math.min(kIndex+3, kanaPool.length);
+          kanaPool.splice(insertAt,0,item);
+          kIndex = (kIndex-1+kanaPool.length)%kanaPool.length;
+        }
+        kcNext();
+      });
+      const reset = document.getElementById('kc-reset'); if(reset) reset.addEventListener('click', ()=>{ if(confirm('Reset all kana progress?')) resetProgress(); });
+
+      ['kc-script','kc-basic','kc-dakuten','kc-handakuten','kc-yoon','kc-exclude-mastered','kc-auto-shuffle']
+        .forEach(id=> { const el=document.getElementById(id); if(el) el.addEventListener('change', ()=>{ kanaPool = buildPool(); kIndex = -1; kcNext(); }); });
+    }
+
+    function bindChartLinks(){
+      const hira = document.getElementById('link-hira'); if(hira) hira.addEventListener('click', (e)=>{ e.preventDefault(); openChart('hiragana'); });
+      const kata = document.getElementById('link-kata'); if(kata) kata.addEventListener('click', (e)=>{ e.preventDefault(); openChart('katakana'); });
+      const pairs = document.getElementById('link-pairs'); if(pairs) pairs.addEventListener('click', (e)=>{ e.preventDefault(); openPairChart(); });
+      const closeBtn = document.getElementById('chart-close'); if(closeBtn) closeBtn.addEventListener('click', closeChart);
+      const modal = document.getElementById('chart-modal'); if(modal) modal.addEventListener('click', (e)=>{ if(e.target===modal) closeChart(); });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeChart(); });
+    }
+
+    // Keyboard shortcuts (global)
+    function bindShortcuts(){
+      document.addEventListener('keydown', (e)=>{
+        const wordsHidden = document.getElementById('tab-words').classList.contains('is-hidden') || document.getElementById('tab-words').hasAttribute('hidden');
+        const activeTabIsWords = !wordsHidden;
+        if(e.code==='Space'){ e.preventDefault(); if(activeTabIsWords){ document.getElementById('wc-ro').style.display='block'; document.getElementById('wc-en').style.display='block'; } else document.getElementById('kc-romaji').style.display='block'; }
+        else if(e.key==='ArrowRight'){ if(activeTabIsWords) wcNext(); else kcNext(); }
+        else if(e.key==='r' || e.key==='R'){ if(activeTabIsWords){ const b=document.getElementById('wc-readtest'); if(b && !b.disabled) b.click(); } }
+        else if(e.key==='s' || e.key==='S'){ if(activeTabIsWords) TTS.speak(document.getElementById('wc-jp').textContent); else TTS.speak(document.getElementById('kc-char').textContent); }
+        else if(!activeTabIsWords && (e.key==='k' || e.key==='K')){ mark(true); }
+        else if(!activeTabIsWords && (e.key==='j' || e.key==='J')){ const w=document.getElementById('kc-wrong'); if(w) w.click(); }
+      });
+    }
+
+    // ===========================
+    // Init
+    // ===========================
+    (function init(){
+      // Words tab
+      shuffleInPlace(wordDecks.hiragana); shuffleInPlace(wordDecks.katakana);
+      wordSet = wordDecks[wordMode];
+      wIndex = lastIndex[wordMode];
+      wcUpdateCount();
+      wcRender();
+      ensureWordButtons();
+      bindWordButtons();
+
+      // Kana tab
+      kanaPool = buildPool();
+      kIndex = -1; // ensure kcNext starts from first
+      kcNext();
+      renderStats();
+
+      // Global
+      updateTTSButtons();
+      bindKanaButtons();
+      bindShortcuts();
+      bindTabs();
+      bindChartLinks();
+      setActiveTab('words'); // ensure consistent initial state across browsers
+
+      runSelfTests();
+    })();
+
+    // ===========================
+    // Self tests (basic runtime checks)
+    // ===========================
+    function runSelfTests(){
+      const results = [];
+      const ok = (name, cond) => results.push(`${cond? 'PASS':'FAIL'}: ${name}`);
+      try{ ok('kcNext defined', typeof kcNext === 'function'); }catch{ results.push('FAIL: kcNext defined threw'); }
+      try{ ok('buildPool defined', typeof buildPool === 'function'); }catch{ results.push('FAIL: buildPool defined threw'); }
+      ok('Kana.hiragana.basic non-empty', Array.isArray(Kana.hiragana.basic) && Kana.hiragana.basic.length>0);
+      ok('Word decks non-empty', HIRAGANA_WORDS.length>0 && KATAKANA_WORDS.length>0);
+      ok('Chart links present', !!document.getElementById('link-hira') && !!document.getElementById('link-kata') && !!document.getElementById('link-pairs'));
+      // Tab switching tests
+      try{
+        setActiveTab('kana');
+        const kanaVisible = !document.getElementById('tab-kana').classList.contains('is-hidden');
+        const wordsHidden = document.getElementById('tab-words').classList.contains('is-hidden');
+        ok('Switch to Kana shows kana', kanaVisible && wordsHidden);
+        setActiveTab('words');
+        const wordsVisible = !document.getElementById('tab-words').classList.contains('is-hidden');
+        const kanaHidden = document.getElementById('tab-kana').classList.contains('is-hidden');
+        ok('Switch back to Words shows words', wordsVisible && kanaHidden);
+      }catch{ results.push('FAIL: Tab switching'); }
+      // ASR scoring tests (no mic needed)
+      try{
+        ok('kataToHira カメラ=>かめら', kataToHira('カメラ')==='かめら');
+        ok('normalizeKana メニュー vs めにゅー similar', similarity(normalizeKana('メニュー'), normalizeKana('めにゅー'))>0.8);
+        ok('scoreReading めにゅー vs メニュー >= 0.85', scoreReading('めにゅー','メニュー')>=0.85);
+      }catch{ results.push('FAIL: ASR helpers'); }
+
+      console.log('[Kana App Self-Tests]', "\n"+results.join("\n"));
+      const box = document.getElementById('self-tests'); if(box){ box.textContent = results.join('\n'); }
+    }
+  </script>
+</body>
+</html>
